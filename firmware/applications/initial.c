@@ -6,12 +6,56 @@
 #include "filesystem/ff.h"
 #include "usb/usbmsc.h"
 
+#include "funk/nrf24l01p.h"
 
+FATFS FatFs;
 /**************************************************************************/
 
-void main_initial(void) {
-    char key=BTN_NONE;
+#define BEACON_CHANNEL 81
+#define BEACON_MAC     "\x1\x2\x3\x2\1"
 
+uint32_t const testkey[4] = {
+    0xB4595344,0xD3E119B6,0xA814D0EC,0xEFF5A24E
+};
+
+void f_init(void){
+    nrf_init();
+
+    struct NRF_CFG config = {
+        .channel= BEACON_CHANNEL,
+        .txmac= BEACON_MAC,
+        .nrmacs=1,
+        .mac0=  BEACON_MAC,
+        .maclen ="\x10",
+    };
+
+    nrf_config_set(&config);
+};
+
+void f_recv(void){
+    __attribute__ ((aligned (4))) uint8_t buf[32];
+    int len;
+    static int foo = 0;
+    len=nrf_rcv_pkt_time_encr(100,sizeof(buf),buf,testkey);
+
+    if(len==0){
+        return;
+    };
+    
+    if( foo )
+        foo = 0;
+    else
+        foo = 1;
+ 
+    gpioSetValue (RB_LED0, foo); 
+    gpioSetValue (RB_LED1, foo); 
+    gpioSetValue (RB_LED2, foo); 
+    gpioSetValue (RB_LED3, foo); 
+};
+
+
+void init(void)
+{
     systickInit(SYSTICKSPEED);
 
     gpioSetValue (RB_LED0, 0); 
@@ -20,73 +64,75 @@ void main_initial(void) {
     gpioSetValue (RB_LED3, 0); 
     IOCON_PIO1_11 = 0x0;
     gpioSetDir(RB_LED3, gpioDirection_Output);
+    f_init();
+}
 
-    while(1){
-        lcdClear();
-        lcdPrintln("Init v.42");
-        lcdNl();
-        lcdPrintln("Left:  ISP()");
-        lcdPrintln("Right: MSC()");
-        lcdPrintln("Up:    FormatDF()");
-        lcdPrintln("Down:  ???");
-        lcdPrintln("Enter: LEDs()");
-        lcdRefresh();
-   
-        key=getInputWait();
+void mount(void)
+{
+    int res;
+    lcdPrintln("Mount DF:");
+    res=f_mount(0, &FatFs);
+    lcdPrintln(f_get_rc_string(res));
+    lcdRefresh();
+}
 
-        if(key&BTN_ENTER){
-            gpioSetValue (RB_LED0, 1); 
-            gpioSetValue (RB_LED1, 1); 
-            gpioSetValue (RB_LED2, 1); 
-            gpioSetValue (RB_LED3, 1); 
-            delayms_power(100);
-            getInputWaitRelease();
+void format(void)
+{
+    int res;
+    lcdPrintln("Formatting DF...");
+    res=f_mkfs(0,1,0);
+    lcdPrintln(f_get_rc_string(res));
+    lcdRefresh();
+}
 
-            gpioSetValue (RB_LED0, 0); 
-            gpioSetValue (RB_LED1, 0); 
-            gpioSetValue (RB_LED2, 0); 
-            gpioSetValue (RB_LED3, 0); 
-            delayms_power(50);
-        };
-		if(key&BTN_RIGHT){
-            lcdClear();
-            lcdPrintln("MSC Enabled.");
-            lcdRefresh();
-            delayms_power(300);
-            usbMSCInit();
-            getInputWait();
-            lcdPrintln("MSC Disabled.");
-            usbMSCOff();
-            lcdRefresh();
-		}
-		if(key&BTN_LEFT){
-            lcdClear();
-            lcdPrintln("Enter ISP!");
-            lcdRefresh();
-            ISPandReset();
-		}
-		if(key&BTN_UP){
-            FATFS FatFs;
-            int res;
+int check(void)
+{
+    FIL file;
+    int res = 1;
+    res=f_open(&file, "flashed.cfg", FA_OPEN_EXISTING|FA_READ);
+    lcdPrint("open:");
+    lcdPrintln(f_get_rc_string(res));
+    lcdRefresh();
+    return res;
+}
 
-            lcdClear();
+void msc(int timeout)
+{
+    lcdPrintln("MSC Enabled.");
+    lcdRefresh();
+    delayms_power(300);
+    usbMSCInit();
 
-            lcdPrintln("Mount DF:");
-            res=f_mount(0, &FatFs);
-            lcdPrintln(f_get_rc_string(res));
-            lcdRefresh();
+    while(check()){
+        mount();
+        delayms(100);
+        f_recv();
+    }
 
-            lcdPrintln("Formatting DF...");
-            res=f_mkfs(0,1,0);
-            lcdPrintln(f_get_rc_string(res));
-            lcdRefresh();
-		}
-		if(key&BTN_DOWN){
-			;
-		}
+    while(timeout--){
+        //f_recv();
+        delayms(100);
+    }
+    lcdPrintln("MSC Disabled.");
+    usbMSCOff();
+    lcdRefresh();
+}
 
-        getInputWaitRelease();
-    };
+void isp(void)
+{
+    lcdPrintln("Enter ISP!");
+    lcdRefresh();
+    ISPandReset();
+}
+	
+void main_initial(void) {
+    init();
+    mount();
+    //if( check() )
+    format();
+    msc(5);
+    delayms(200);
+    ReinvokeISP();
 }
 
 void tick_initial(void){
