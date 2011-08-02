@@ -152,6 +152,7 @@ char isNight(void);
 uint8_t getInput(void);
 uint8_t getInputRaw(void);
 uint8_t getInputWait(void);
+uint8_t getInputWaitTimeout(int timeout);
 void getInputWaitRelease(void);
 
 // stringin.c
@@ -172,12 +173,13 @@ struct MENU_DEF {
     void (*callback)(void);
 };
 
-typedef const struct MENU_DEF * menuentry;
-
 struct MENU {
     char *title;
-    menuentry *entries;
+    struct MENU_DEF entries[];
 };
+
+#define MENU_TIMEOUT (1<<0)
+extern uint8_t menuflags;
 
 
 void handleMenu(const struct MENU *the_menu);

@@ -14,12 +14,24 @@
 #define ZOOM_RATIO 0.90
 #define ITERATION_MAX 150
 
-void blink(){
-    gpioSetValue (RB_LED1, CFG_LED_OFF); 
-    delayms(100);
-    gpioSetValue (RB_LED1, CFG_LED_ON); 
-    delayms(100);
-    gpioSetValue (RB_LED1, CFG_LED_OFF); 
+void mandelInit();
+void mandelMove();
+void mandelUpdate();
+
+void ram(void) {
+    int key;
+    mandelInit();
+    while (1) {
+        lcdDisplay();
+        mandelMove();
+        mandelUpdate();
+
+        // Exit on enter+direction
+        key=getInputRaw();
+        if(key&BTN_ENTER && key>BTN_ENTER)
+            return;
+    }
+    return;
 }
 
 struct mb {
@@ -157,36 +169,3 @@ void mandelUpdate() {
     }
 }
 
-
-void main_mandelbrot2(void) {
-    backlightInit();
-    IOCON_PIO3_3 = 0x10;
-    font=&Font_7x8;
-    mandelInit();
-    while (1) {
-        lcdDisplay();
-        mandelMove();
-        mandelUpdate();
-        
-        
-        if(gpioGetValue(RB_BTN0)==0 && gpioGetValue(RB_BTN4)==0){
-        DoString(0,0,"Enter ISP!");
-        lcdDisplay();
-        ISPandReset();
-    }
-    
-    }
-    return;
-}
-
-void tick_mandelbrot2(void){
-    static int foo=0;
-    static int toggle=0;
-	if(foo++>50){
-        toggle=1-toggle;
-		foo=0;
-        gpioSetValue (RB_LED0, toggle); 
-	};
-    
-    return;
-};

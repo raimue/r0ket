@@ -22,62 +22,52 @@ void fancyNickname(void) {
     static uint32_t ctr=0;
 	ctr++;
 
+	setExtFont(GLOBAL(nickfont));
+	dx=DoString(0,0,GLOBAL(nickname));
+    dx=(RESX-dx)/2;
+    if(dx<0)
+        dx=0;
+    dy=(RESY-getFontHeight())/2;
 
 	lcdClear();
-	setExtFont(GLOBAL(nickfont));
 	DoString(dx,dy,GLOBAL(nickname));
 	lcdRefresh();
 
+    while(getInputRaw()==BTN_NONE){
+        work_queue();
+    };
     return;
 }
 
 /**************************************************************************/
 
-void initNick(void){
+void init_nick(void){
 	readFile("nick.cfg",GLOBAL(nickname),MAXNICK);
-//	readFile("font.cfg",GLOBAL(nickfont),FILENAMELEN);
+	readFile("font.cfg",GLOBAL(nickfont),FILENAMELEN);
 };
 
+//# MENU nick editNick
 void doNick(void){
 	input("Nickname:", GLOBAL(nickname), 32, 127, MAXNICK-1);
 	writeFile("nick.cfg",GLOBAL(nickname),strlen(GLOBAL(nickname)));
 	getInputWait();
 };
 
+//# MENU nick changeFont
 void doFont(void){
     getInputWaitRelease();
     if( selectFile(GLOBAL(nickfont),"F0N") != 0){
         lcdPrintln("No file selected.");
         return;
     };
+	writeFile("font.cfg",GLOBAL(nickname),strlen(GLOBAL(nickname)));
 
     lcdClear();
-    lcdPrintln(GLOBAL(nickfont));
+    setIntFont(&Font_7x8);
+    lcdPrintln("Test:");
     setExtFont(GLOBAL(nickfont));
-    lcdPrintln("PUabc€");
-    setIntFont(&Font_7x8);
-    lcdPrintln("done.");
+    lcdPrintln(GLOBAL(nickname));
     lcdDisplay();
+    setIntFont(&Font_7x8);
     while(!getInputRaw())delayms(10);
 };
-
-
-#if 0
-     void f_font(void){
-
-    if( selectFile(fontname,"F0N") != 0){
-        lcdPrintln("No file selected.");
-        return;
-    };
-
-    lcdClear();
-    lcdPrintln(fontname);
-    setExtFont(fontname);
-    lcdPrintln("PUabc€");
-    setIntFont(&Font_7x8);
-    lcdPrintln("done.");
-    lcdDisplay();
-    while(!getInputRaw())delayms(10);
-};
-
-#endif
