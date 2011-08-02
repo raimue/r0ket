@@ -4,6 +4,7 @@
 #include "basic/config.h"
 
 #include "lcd/print.h"
+#include "lcd/render.h"
 #include "lcd/display.h"
 
 #include "filesystem/ff.h"

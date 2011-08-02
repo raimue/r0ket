@@ -23,10 +23,13 @@ LIBS += ../firmware/basic/libbasic.a
 
 OBJS+=../simcore/simcore.o ../simcore/misc.o ../simcore/timecounter.o
 
+OBJS += simulat0r.o
+
 .PHONY : all
 all : simulat0r
 
-simulat0r : simulat0r.o $(OBJS) $(LIBS) 
+simulat0r : $(OBJS) $(LIBS)
+	$(LD) $(OBJS) $(LIBS) -lc -o $@
 
 clean:
 	$(RM) simulat0r.o

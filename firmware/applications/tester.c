@@ -17,8 +17,4 @@ void main_tester(void) {
     gotoISP();
 };
 
-void tick_tester(void){
-    generated_tick();
-};
-
-
+void tick_tester(void);
