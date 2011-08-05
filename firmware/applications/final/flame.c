@@ -64,12 +64,13 @@ void setFlamePWM() {
 void tick_flame(void) { // every 10ms
     static char night=0;
 
-    if(!flameEnabled)
+    if (!flameEnabled) {
         return;
+    }
 
-    if(night!=isNight()){
-        night=isNight();
-        if(!night){
+    if (night != isNight()) {
+        night = isNight();
+        if (!night) {
             flameMode = FLAME_OFF;
             flameI2Cpwm = 0;
             push_queue(&setFlamePWM);
@@ -86,20 +87,20 @@ void tick_flame(void) { // every 10ms
     }
 
     if (flameMode == FLAME_OFF) {
-        if (isNight() && flameEnabled) {
+        if (isNight()) {
             flameTicks = 0;
             flameMode = FLAME_UP;
         }
     }
 
     if (flameMode == FLAME_UP) {
-        if (flameI2Cpwm + flameSpeedUp > flameI2Cpwm ) {
+        if (0xFF - flameI2Cpwm >= flameSpeedUp ) {
             flameI2Cpwm += flameSpeedUp;
         } else {        
             flameI2Cpwm = 0xFF;
         }
         push_queue(&setFlamePWM);
-        if (flameI2Cpwm == flameBrightnessMax) {
+        if (flameI2Cpwm >= flameBrightnessMax) {
             flameMode = FLAME_UP_WAIT;
             flameTicks = 0;
         }
@@ -112,13 +113,13 @@ void tick_flame(void) { // every 10ms
     }
 
     if (flameMode == FLAME_DOWN) {
-        if (flameI2Cpwm - flameSpeedDown < flameI2Cpwm ) {
+        if (flameSpeedDown <= flameI2Cpwm) {
             flameI2Cpwm -= flameSpeedDown;
         } else {
             flameI2Cpwm = 0x00;
         }
         push_queue(&setFlamePWM);
-        if (flameI2Cpwm == flameBrightnessMin) {
+        if (flameI2Cpwm <= flameBrightnessMin) {
             flameMode = FLAME_DOWN_WAIT;
             flameTicks = 0;
         }
@@ -131,28 +132,29 @@ void tick_flame(void) { // every 10ms
     }
 }
 
-//# MENU flame
-void flameInit(void) {
-
+void init_flame(void) {
     i2cInit(I2CMASTER); // Init I2C
 
     flameEnabled = (flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED0) == I2CSTATE_ACK); // probe i2c
 
-    if (flameEnabled) {
-        flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED0); // set led0 off
-        flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED1); // set led1 off
-        flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED2); // set led2 off
-        flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED3); // set led3 off
+    if (!flameEnabled)
+        return;
 
-        flameSetI2C(FLAME_I2C_CR_PSC0, 0x00); // set prescaler
-        flameSetI2C(FLAME_I2C_CR_PWM0, 0x00); // set pwm
-        flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_PWM0 << FLAME_I2C_LS0_LED0); // set led0 to pwm
-    }
+    flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED0); // set led0 off
+    flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED1); // set led1 off
+    flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED2); // set led2 off
+    flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_OFF << FLAME_I2C_LS0_LED3); // set led3 off
+
+    flameSetI2C(FLAME_I2C_CR_PSC0, 0x00); // set prescaler
+    flameSetI2C(FLAME_I2C_CR_PWM0, 0x00); // set pwm
+    flameSetI2C(FLAME_I2C_CR_LS0, FLAME_I2C_LS0_PWM0 << FLAME_I2C_LS0_LED0); // set led0 to pwm
+
+    enableConfig(CFG_TYPE_FLAME,1);
 }
 
 #include "lcd/print.h"
 
-//# MENU debug ChkFlame
+// //# MENU flame
 void ChkFlame(void) {
     do{
         lcdClear();

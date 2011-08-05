@@ -7,30 +7,34 @@
 #include "basic/random.h"
 #include "basic/config.h"
 
-#define CFGVER 1
+#define CFGVER 3
 
 struct CDESC the_config[]= {
-    {"version",          CFGVER, CFGVER, CFGVER},
+    {"version",          CFGVER, CFGVER, CFGVER, 0, 0},
     //                   dflt  min max
-    {"privacy",          3,     0, 2  },
-    {"daytrig",          310/2, 0, 255},
-    {"daytrighyst",      10,    0, 50 },
-    {"dayinvert",        1,     0, 1  },
-    {"lcdbacklight",     50,    0, 100},
-    {"lcdmirror",        0,     0, 1  },
-    {"lcdinvert",        0,     0, 1  },
-    {"lcdcontrast",      14,    0, 31 },
-    {"alivechk",         0,     0, 2  },
-    {"flamemax",         255,   0, 255},
-    {"flamemin",         0,     0, 255},
-    {"flamespeed",       1,     1, 100},
-    {"flamemaxw",        255,   1, 255},
-    {"flameminw",        0x8f,  1, 255},
-    { NULL,              0,     0, 0  },
+    {"privacy",          3,     0, 2  , 0, 0},
+    {"daytrig",          310/2, 0, 255, 0, 0},
+    {"daytrighyst",      10,    0, 50 , 0, 0},
+    {"dayinvert",        1,     0, 1  , 0, 0},
+    {"lcdbacklight",     50,    0, 100, 0, 0},
+    {"lcdmirror",        0,     0, 1  , 0, 0},
+    {"lcdinvert",        0,     0, 1  , 0, 0},
+    {"lcdcontrast",      14,    0, 31 , 0, 0},
+    {"alivechk",         0,     0, 2  , 1, CFG_TYPE_DEVEL},
+    {"develmode",        0,     0, 1  , 1, CFG_TYPE_DEVEL},
+    {"flamemax",         255,   0, 255, 1, CFG_TYPE_FLAME},
+    {"flamemin",         0,     0, 255, 1, CFG_TYPE_FLAME},
+    {"flamespeed",       1,     1, 100, 1, CFG_TYPE_FLAME},
+    {"flamemaxw",        255,   1, 255, 1, CFG_TYPE_FLAME},
+    {"flameminw",        0x8f,  1, 255, 1, CFG_TYPE_FLAME},
+    {"l0nick",           0,     0, 1  , 0, 0},
+    {"chargeled",        0,     0, 1  , 0, 0},
+    { NULL,              0,     0, 0  , 0, 0},
 };
 
 char nickname[MAXNICK]="anonymous";
 char nickfont[FILENAMELEN];
+char nickl0[FILENAMELEN];
 
 #define CONFFILE "r0ket.cfg"
 #define CONF_ITER for(int i=0;the_config[i].name!=NULL;i++)
@@ -40,7 +44,7 @@ char nickfont[FILENAMELEN];
 void applyConfig(){
     if(GLOBAL(lcdcontrast)>0)
         lcdSetContrast(GLOBAL(lcdcontrast));
-	return;
+    enableConfig(CFG_TYPE_DEVEL,GLOBAL(develmode));
 };
 
 int saveConfig(void){
@@ -48,6 +52,8 @@ int saveConfig(void){
     UINT writebytes;
     UINT allwrite=0;
     int res;
+
+    lcdClear();
 
 	res=f_open(&file, CONFFILE, FA_OPEN_ALWAYS|FA_WRITE);
 	lcdPrint("create:");
@@ -112,3 +118,10 @@ int readConfig(void){
     return 0;
 };
 
+void enableConfig(char type,char enable){
+    CONF_ITER{
+        if(the_config[i].type == type){
+            the_config[i].disabled=!enable;
+        }
+    }
+}

@@ -6,6 +6,11 @@
 
 #include <string.h>
 
+#include "basic/ecc.h"
+
+#include "basic/config.h"
+#include "filesystem/execute.h"
+
 /**************************************************************************/
 
 #include "final.gen"
@@ -13,18 +18,24 @@
 void init_nick();
 void fancyNickname();
 
-#include "lcd/allfonts.h"
-void forLoadables(int i){
-    if(i){
-        lcdSetPixel(0,0);
-        font=&Font_Invaders;
-    };
-};
-
 void main_final(void) {
+    init_nick();
+	if(GLOBAL(privacy)>2){ //firstboot
+        if(execute_file("1boot.int",0,0)){
+            lcdPrintln("Badge SETUP");
+            lcdPrintln("error.");
+            lcdPrintln("Features may");
+            lcdPrintln("be broken.");
+            lcdRefresh();
+            getInputWait();
+            getInputWaitRelease();
+            GLOBAL(privacy)=0;
+        }else{
+            saveConfig();
+        };
+    };
     //checkFirstBoot();
     init_final();
-    forLoadables(0);
     menuflags|=MENU_TIMEOUT;
 
     while(1){

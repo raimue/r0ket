@@ -1,6 +1,7 @@
 #include <sysinit.h>
 
 #include "basic/basic.h"
+#include "basic/config.h"
 
 #include "lcd/print.h"
 
@@ -11,7 +12,7 @@ uint8_t menuflags=0;
 void handleMenu(const struct MENU *the_menu) {
     uint8_t back = 0;
     int8_t menuselection = 0;
-    uint8_t numentries = 0;
+    uint8_t numentries;
     uint8_t visible_lines = 0;
     uint8_t current_offset = 0;
 
@@ -21,7 +22,14 @@ void handleMenu(const struct MENU *the_menu) {
 
     for (numentries = 0; the_menu->entries[numentries].text != NULL ; numentries++);
 
+    if(the_menu->entries[numentries-1].text[0]=='|' && !GLOBAL(develmode))
+        numentries--;
+
     visible_lines = lcdGetVisibleLines()-1; // subtract title line
+
+    if(menuflags&MENU_BIG)
+        visible_lines/=2;
+
 #ifdef SAFETY
     if (visible_lines < 2) return;
 #endif
@@ -32,6 +40,8 @@ void handleMenu(const struct MENU *the_menu) {
         lcdPrintln(the_menu->title);
 
         for (uint8_t i = current_offset; i < (visible_lines + current_offset) && i < numentries; i++) {
+            if(menuflags&MENU_BIG)
+                lcdNl();
             if (i == menuselection) {
                 lcdPrint("*");
             }
@@ -40,7 +50,7 @@ void handleMenu(const struct MENU *the_menu) {
         }
         lcdRefresh();
 
-        switch (getInputWaitTimeout((menuflags&MENU_TIMEOUT)?15:0)) {
+        switch (getInputWaitTimeout((menuflags&MENU_TIMEOUT)?15000:0)) {
             case BTN_UP:
                 menuselection--;
                 if (menuselection < current_offset) {
@@ -68,16 +78,27 @@ void handleMenu(const struct MENU *the_menu) {
             case BTN_RIGHT:
                 if (the_menu->entries[menuselection].callback!=NULL)
                     the_menu->entries[menuselection].callback();
+
+                setSystemFont();
+				
+				if (menuflags&MENU_JUSTONCE)
+					return;
+				
                 break;
             case BTN_ENTER:
                 lcdClear();
-                lcdPrintln("Called...");
-                lcdRefresh();
+//                lcdPrintln("Called...");
+//                lcdRefresh();
                 getInputWaitRelease();
                 if (the_menu->entries[menuselection].callback!=NULL)
                     the_menu->entries[menuselection].callback();
                 lcdRefresh();
-                getInputWait();
+                setSystemFont();
+				
+				if (menuflags&MENU_JUSTONCE)
+					return;
+
+//                getInputWait();
 
                 break;
             case BTN_NONE: /* timeout */

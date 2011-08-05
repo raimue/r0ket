@@ -4,6 +4,7 @@
 
 #include "basic/basic.h"
 #include "basic/byteorder.h"
+#include "basic/config.h"
 
 #include "lcd/lcd.h"
 #include "lcd/print.h"
@@ -20,59 +21,6 @@ void init_mesh(void){
     nrf_init();
     initMesh();
 };
-
-void m_tset(void){
-    _timet=1311961112;
-};
-
-//# MENU debug MeshInfo
-void m_time(void){
-    struct tm* tm;
-    char c[2]={0,0};
-    getInputWaitRelease();
-    delayms(100);
-    do{
-        lcdClear();
-        tm= mygmtime(getSeconds());
-        lcdPrint(IntToStr(tm->tm_hour,2,F_LONG));
-        lcdPrint(":");
-        lcdPrint(IntToStr(tm->tm_min,2,F_LONG|F_ZEROS));
-        lcdPrint(":");
-        lcdPrint(IntToStr(tm->tm_sec,2,F_LONG|F_ZEROS));
-        lcdNl();
-        lcdPrint(IntToStr(tm->tm_mday,2,F_LONG));
-        lcdPrint(".");
-        lcdPrint(IntToStr(tm->tm_mon+1,2,0));
-        lcdPrint(".");
-        lcdPrint(IntToStr(tm->tm_year+YEAR0,4,F_LONG|F_ZEROS));
-        lcdNl();
-
-        lcdNl();
-        lcdPrint("<");
-
-        for(int i=0;i<MESHBUFSIZE;i++){
-            if(!meshbuffer[i].flags&MF_USED){
-                c[0]='_';
-            }else{
-                c[0]=meshbuffer[i].pkt[0];
-            };
-            lcdPrint(c);
-        };
-        lcdPrintln(">");
-
-        lcdPrint("Gen:");
-        lcdPrintInt(meshgen);
-        lcdNl();
-        lcdRefresh();
-        delayms_queue(50);
-    }while ((getInputRaw())==BTN_NONE);
-};
-
-
-inline void blink(char a, char b){
-    gpioSetValue (a,b, 1-gpioGetValue(a,b));
-};
-
 
 int choose(char * texts, int8_t menuselection){
     uint8_t numentries = 0;
@@ -172,13 +120,28 @@ char *meshmsgs(void){
     return msgtypes;
 };
 
-
+static inline uint32_t popcount(uint32_t *buf, uint8_t n){
+    int cnt=0;
+    do {
+        unsigned m = *buf++;
+        m = (m & 0x55555555) + ((m & 0xaaaaaaaa) >> 1);
+        m = (m & 0x33333333) + ((m & 0xcccccccc) >> 2);
+        m = (m & 0x0f0f0f0f) + ((m & 0xf0f0f0f0) >> 4);
+        m = (m & 0x00ff00ff) + ((m & 0xff00ff00) >> 8);
+        m = (m & 0x0000ffff) + ((m & 0xffff0000) >> 16);
+        cnt += m;
+    } while(--n);
+    return cnt;
+}
 
 extern MPKT meshbuffer[MESHBUFSIZE];
-//# MENU mesh Messages
+//# MENU messages
 void m_choose(){
     char list[99];
     int i=0;
+
+    meshmsg=0;
+    gpioSetValue (RB_LED1, 0); 
 
     while(1){
     char *p=list;
@@ -200,6 +163,12 @@ void m_choose(){
                 break;
             case('T'):
                 strcpy(p,"Time");
+                break;
+            case('Z'):
+                strcpy(p,"Schnitzel");
+                break;
+            case('z'):
+                strcpy(p,"S-Score");
                 break;
             case('i'):
                 strcpy(p,"Invaders");
@@ -237,6 +206,12 @@ void m_choose(){
         case('T'):
             lcdPrintln("Time");
             break;
+        case('Z'):
+            strcpy(p,"Schnitzel");
+            break;
+        case('z'):
+            strcpy(p,"S-Score");
+            break;
         case('i'):
             lcdPrintln("Invaders");
             break;
@@ -251,6 +226,28 @@ void m_choose(){
         lcdPrint(":");
         lcdPrint(IntToStr(tm->tm_sec,2,F_LONG|F_ZEROS));
         lcdNl();
+
+        if(tmm[i]=='Z'){
+            lcdPrintln(IntToStrX(uint8ptouint32(meshbuffer[j].pkt+ 6),8));
+            lcdPrintln(IntToStrX(uint8ptouint32(meshbuffer[j].pkt+10),8));
+            lcdPrintln(IntToStrX(uint8ptouint32(meshbuffer[j].pkt+14),8));
+            lcdPrintln(IntToStrX(uint8ptouint32(meshbuffer[j].pkt+18),8));
+            lcdPrintln(IntToStrX(uint8ptouint32(meshbuffer[j].pkt+22),8));
+            lcdPrintln(IntToStrX(uint8ptouint32(meshbuffer[j].pkt+26),8));
+            lcdPrint(IntToStr(popcount(meshbuffer[j].pkt+6,6),3,0));
+            lcdPrintln(" pts.");
+            lcdRefresh();
+            getInputWaitRelease();
+            continue;
+        }else if(tmm[i]=='T'){
+            lcdPrint(IntToStr(tm->tm_mday,2,F_LONG));
+            lcdPrint(".");
+            lcdPrint(IntToStr(tm->tm_mon+1,2,0));
+            lcdPrint(".");
+            lcdPrint(IntToStr(tm->tm_year+YEAR0,4,F_LONG|F_ZEROS));
+            lcdNl();
+            MO_BODY(meshbuffer[j].pkt)[0]=0;
+        };
     };
     char *foo=(char *)MO_BODY(meshbuffer[j].pkt);
     while(strlen(foo)>13){
@@ -272,6 +269,12 @@ void m_choose(){
 
 
 void tick_mesh(void){
-    mesh_systick();
+    if(GLOBAL(privacy)<2)
+        mesh_systick();
+    if(_timectr%64)
+        if(meshmsg){
+            gpioSetValue (RB_LED1, 1); 
+            meshmsg=0;
+        };
 };
 

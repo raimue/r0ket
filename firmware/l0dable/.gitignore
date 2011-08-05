@@ -1,0 +1,7 @@
+*.elf
+*.bin
+usetable.h
+loadable.ld
+*.nik
+*.c0d
+*.int

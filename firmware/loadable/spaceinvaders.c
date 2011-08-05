@@ -1,34 +1,33 @@
 #include <sysinit.h>
+#include <string.h>
 
 #include "basic/basic.h"
+#include "basic/random.h"
 
 #include "lcd/render.h"
 #include "lcd/display.h"
 #include "lcd/allfonts.h"
 
-void ReinvokeISP(void);
-void EnableWatchdog(uint32_t ms);
-void delayms(uint32_t ms);
-
 /**************************************************************************/
 #define POS_PLAYER_Y 60
+#define POS_PLAYER_X RESX/2-3
 #define POS_UFO_Y 0
 #define ENEMY_ROWS 3
 #define ENEMY_COLUMNS 6
 #define DISABLED 255
 
-#define UFO_PROB 1000
+#define UFO_PROB 1024
 
-#define TYPE_PLAYER 1
-#define TYPE_ENEMY_A 2
-#define TYPE_ENEMY_B 3
+#define TYPE_PLAYER  1
+#define TYPE_ENEMY_A 3
+#define TYPE_ENEMY_B 2
 #define TYPE_ENEMY_C 4
-#define TYPE_UFO 5
+#define TYPE_UFO     5
 
 #define BUNKERS 3
 #define BUNKER_WIDTH  10
-static const BUNKER_X[] = {15, RESX/2-BUNKER_WIDTH/2,RESX-BUNKER_WIDTH-15};
-static const ENEMY_WIDTHS[] = {10,11,8};
+static const uint8_t BUNKER_X[] = {15, RESX/2-BUNKER_WIDTH/2,RESX-BUNKER_WIDTH-15};
+static const uint8_t ENEMY_WIDTHS[] = {8,10,12};
 
 struct gamestate {
     char player;
@@ -51,16 +50,19 @@ struct gamestate {
 char key;
 
 void init_game();
+void init_enemy();
 void check_end();
 void move_ufo();
+void move_shot();
 void move_shots();
 void move_player();
-void move_enemay();
+void move_enemy();
 void draw_score();
 void draw_bunker();
 void draw_player();
 void draw_enemy();
 void draw_shots();
+void draw_sprite(char type, char x, char y);
 void draw_ufo();
 void screen_intro();
 void screen_gameover();
@@ -144,19 +146,25 @@ void screen_level() {
 }
 
 void init_game(void) {
-	game.player = RESX/2-4;
+	game.player = POS_PLAYER_X;
 	game.shot_x = DISABLED;
 	game.shot_y = 0;
 	game.alive = ENEMY_ROWS*ENEMY_COLUMNS;
 	game.move = 0;
-	game.direction = -1;
-	game.lastcol = ENEMY_COLUMNS-1;
+	if (getRandom()%2 == 0) {
+		game.direction = -1;
+		game.lastcol = ENEMY_COLUMNS-1;
+	} else {
+		game.direction = 1;
+		game.lastcol = 0;
+	}
 	game.killed = 0;
 	game.step = false;
 	game.ufo = DISABLED;
+	game.score = 0;
 	init_enemy();
 	
-	for (char col=0; col<ENEMY_COLUMNS; col++){
+	for (int col=0; col<ENEMY_COLUMNS; col++){
 	   game.shots_x[col] = DISABLED;
    	}
 
@@ -181,7 +189,7 @@ void init_enemy() {
     for (int row = 0; row<ENEMY_ROWS; row++) {
         game.enemy_row_y[row] = 10 + (40/ENEMY_ROWS)*row;
         for (int col = 0; col<ENEMY_COLUMNS; col++) {
-            game.enemy_x[row][col] = 5+(86/ENEMY_COLUMNS)*col;
+            game.enemy_x[row][col] = 5+(86/ENEMY_COLUMNS)*col+(2-row);
         }
     }
 }
@@ -216,21 +224,8 @@ void move_shot() {
             game.shot_x = DISABLED;
             return;
     } 
-    
-    //check for collision with bunker
-//	for (int b=0; b<BUNKERS; b++) {
-//		if (game.shot_x>BUNKER_X[BUNKERS-1-b] &&
-//			game.shot_x<BUNKER_X[BUNKERS-1-b]+BUNKER_WIDTH &&
-//			game.shot_y<RESY-8 &&
-//			game.shot_y>RESY-16) {
-//			int offset = BUNKER_WIDTH - (game.shot_x-BUNKER_X[BUNKERS-1-b]);	
-//			if (game.bunker[b][offset]!=0) {
-//				game.bunker[b][offset]&=game.bunker[b][offset]<<1;
-//				game.shot_x=DISABLED;
-//			}
-//		}
-//	}
-    if (check_bunker(game.shot_x,game.shot_y-5,1 ))
+
+   if (check_bunker(game.shot_x,game.shot_y-5,1 ))
 		game.shot_x=DISABLED;
 
     //check for collision with enemy, kill enemy if
@@ -241,12 +236,13 @@ void move_shot() {
                     game.enemy_x[row][col]=DISABLED;
                     game.shot_x = DISABLED;
                     game.alive--;
-					game.score++;
+					game.score+=(3-row)*10;
                     return;
                 }
             }
         }
     }
+
     //check for collision with ufo
    	if (game.ufo != DISABLED &&
 		game.shot_x>game.ufo &&
@@ -254,7 +250,7 @@ void move_shot() {
 		game.shot_y<8) {
 
 		game.ufo = DISABLED;
-		game.score += 5;
+		game.score += 50;
 	}
 
     game.shot_y -= 2;
@@ -264,10 +260,10 @@ void move_shot() {
 
 
 void move_shots() {
-    for (char col = 0; col<ENEMY_COLUMNS; col++){
+    for (int col = 0; col<ENEMY_COLUMNS; col++){
 		//No shot, maybe generate
 		if (game.shots_x[col] == DISABLED) {
-			for (char row = 0; row<ENEMY_ROWS; row++) {
+			for (int row = 0; row<ENEMY_ROWS; row++) {
 				if (game.enemy_x[row][col] != DISABLED) {	
 					if(getRandom()%(game.alive*20/((game.level/3)+1))==0) {
 						game.shots_x[col] = game.enemy_x[row][col]+5;
@@ -287,20 +283,7 @@ void move_shots() {
         if (check_bunker(game.shots_x[col],game.shots_y[col],-1))
 			game.shots_x[col]=DISABLED;
 
-//		for (int b=0; b<BUNKERS; b++) {
-//			if (game.shots_x[col]>BUNKER_X[BUNKERS-1-b] &&
-//					game.shots_x[col]<BUNKER_X[BUNKERS-1-b]+BUNKER_WIDTH &&
-//					game.shots_y[col]<RESY-8 &&
-//					game.shots_y[col]>RESY-16) {
-//				int offset = BUNKER_WIDTH - (game.shots_x[col]-BUNKER_X[BUNKERS-1-b])-1;	
-//				if (game.bunker[b][offset]!=0) {
-//					game.bunker[b][offset]&=game.bunker[b][offset]>>1;
-//					game.shots_x[col]=DISABLED;
-//				}
-//			}
-//		}
-		//check for collision with player
-		
+		//check for collision with player	
 		if (game.shots_y[col] >= RESY-13 &&
 			game.shots_x[col] > game.player+1 &&
 			game.shots_x[col] < game.player+6) {
@@ -362,25 +345,12 @@ void move_enemy() {
 					game.killed = true;
                 }
                 check_bunker(pos,game.enemy_row_y[row]+8,-2);  
-				//check for collision with bunker, dirty
-			//	for (int b=0; b<BUNKERS; b++) {
-			//		if (pos>=BUNKER_X[BUNKERS-1-b] &&
-			//				pos<=BUNKER_X[BUNKERS-1-b]+BUNKER_WIDTH &&
-			//				game.enemy_row_y[row]+8<RESY-8 &&
-			//				game.enemy_row_y[row]+8>RESY-16) {
-			//			int offset = BUNKER_WIDTH - (pos-BUNKER_X[BUNKERS-1-b]);	
-			//			if (game.bunker[b][offset]!=0) {
-			//				game.bunker[b][offset]&=game.bunker[b][offset]>>2;
-			//			}
-			//		}
-			//	}
-
-
+			
 			    //Are we at the beginning or end? Direction change	
                 if((pos <=0 && game.direction != 1) ||
-                   (pos >=RESX-11-1 && game.direction == 1)){
+                   (pos >=RESX-10 && game.direction == 1)){
                     game.direction = (game.direction==1)?-1:1;
-                    for (char r = 0; r<ENEMY_ROWS; r++) {
+                    for (int r = 0; r<ENEMY_ROWS; r++) {
                         game.enemy_row_y[r]+=game.level>=23?4:2;
                     }
                     return;
@@ -394,7 +364,6 @@ void move_enemy() {
 }
 
 void draw_player() {
-    //draw_sprite(50, 20);
     draw_sprite(TYPE_PLAYER, game.player, POS_PLAYER_Y);
 }
 
@@ -407,7 +376,7 @@ void draw_enemy() {
     for (int row = 0; row<ENEMY_ROWS; row++) {
         for (int col = 0; col<ENEMY_COLUMNS; col++) {
             if (game.enemy_x[row][col] != DISABLED) {
-                draw_sprite(TYPE_ENEMY_A+row,game.enemy_x[row][col],game.enemy_row_y[row]);
+                draw_sprite(TYPE_ENEMY_C-row,game.enemy_x[row][col],game.enemy_row_y[row]);
             }
         }
     }
@@ -426,7 +395,7 @@ void draw_shots() {
         }
     }
 
-	for (char col = 0; col < ENEMY_COLUMNS; col++) {
+	for (int col = 0; col < ENEMY_COLUMNS; col++) {
 		if (game.shots_x[col] != DISABLED) {
 			for (int length=0; length<=5; length++) {
 				lcdSetPixel(game.shots_x[col], game.shots_y[col]+length,true);
@@ -477,7 +446,7 @@ void check_end() {
     if (game.killed) {
 		game.rokets--;
 		delayms(500);
-        game.player = RESX/2-4;
+        game.player = POS_PLAYER_X;
         
 		for(int col=0; col<ENEMY_COLUMNS; col++) {
 			game.shots_x[col] = DISABLED;

@@ -136,6 +136,7 @@ void delayms(uint32_t ms);
 // voltage.c
 void VoltageCheck(void);
 uint32_t GetVoltage(void);
+uint8_t GetChrgStat(void);
 
 // night.c
 void LightCheck(void);
@@ -152,6 +153,7 @@ char isNight(void);
 uint8_t getInput(void);
 uint8_t getInputRaw(void);
 uint8_t getInputWait(void);
+uint8_t getInputWaitRepeat(void);
 uint8_t getInputWaitTimeout(int timeout);
 void getInputWaitRelease(void);
 
@@ -178,7 +180,9 @@ struct MENU {
     struct MENU_DEF entries[];
 };
 
-#define MENU_TIMEOUT (1<<0)
+#define MENU_TIMEOUT  (1<<0)
+#define MENU_JUSTONCE (1<<1)
+#define MENU_BIG      (1<<2)
 extern uint8_t menuflags;
 
 
@@ -202,6 +206,13 @@ const char* IntToStr(int num, unsigned int mxlen, char flag);
 
 // global
 #define SYSTICKSPEED 10
+
+#ifdef __arm__
+#define WFI        __asm volatile ("WFI")
+#else
+#define WFI       delayms(SYSTICKSPEED)
+#endif
+
 
 
 #endif

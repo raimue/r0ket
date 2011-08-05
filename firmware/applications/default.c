@@ -5,18 +5,29 @@
 #include "lcd/lcd.h"
 #include "lcd/fonts/smallfonts.h"
 #include "lcd/print.h"
+#include "lcd/image.h"
 #include "filesystem/ff.h"
 #include "usb/usbmsc.h"
 #include "basic/random.h"
+#include "funk/nrf24l01p.h"
 
 /**************************************************************************/
 
 void main_default(void) {
     systickInit(SYSTICKSPEED);
-
-    switch(getInputRaw()){
+    
+	//show bootscreen
+	lcdClear();
+	lcdLoadImage("r0ket.lcd");
+	lcdRefresh();
+	lcdClear();
+    
+	switch(getInputRaw()){
         case BTN_ENTER:
             ISPandReset();
+            break;
+        case BTN_UP: // Reset config
+            f_unlink("r0ket.cfg");
             break;
         case BTN_DOWN:
             usbMSCInit();
@@ -26,6 +37,10 @@ void main_default(void) {
     };
 
     readConfig();
+	if(getInputRaw()==BTN_RIGHT){
+            GLOBAL(develmode)=1;
+            applyConfig();
+    };
     randomInit();
 
     return;
@@ -42,13 +57,13 @@ void queue_unsetinvert(void){
 
 #define EVERY(x,y) if((ctr+y)%(x/SYSTICKSPEED)==0)
 
-// every 10 ms
+// every SYSTICKSPEED ms
 void tick_default(void) {
     static int ctr;
     ctr++;
     incTimer();
 
-    EVERY(1000,0){
+    EVERY(1024,0){
         if(!adcMutex){
             VoltageCheck();
             LightCheck();
@@ -58,7 +73,7 @@ void tick_default(void) {
     };
 
     static char night=0;
-    EVERY(100,2){
+    EVERY(128,2){
         if(night!=isNight()){
             night=isNight();
             if(night){
@@ -73,6 +88,15 @@ void tick_default(void) {
 
 
     EVERY(50,0){
+        if(GLOBAL(chargeled)){
+            IOCON_PIO1_11 = 0x0;
+            gpioSetDir(RB_LED3, gpioDirection_Output);
+            if(GetChrgStat())
+                gpioSetValue (RB_LED3, 1);
+            else
+                gpioSetValue (RB_LED3, 0);
+        };
+
         if(GetVoltage()<3600){
             IOCON_PIO1_11 = 0x0;
             gpioSetDir(RB_LED3, gpioDirection_Output);
@@ -81,6 +105,10 @@ void tick_default(void) {
             else
                 gpioSetValue (RB_LED3, 0);
         };
+    };
+
+    EVERY(4096,17){
+        push_queue(nrf_check_reset);
     };
     return;
 };

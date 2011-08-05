@@ -84,13 +84,13 @@ void tick_flame(void) { // every 10ms
     }
 
     if (flameMode == FLAME_UP) {
-	if (flameI2Cpwm + flameSpeedUp > flameI2Cpwm ) {
+	if (0xFF - flameI2Cpwm >= flameSpeedUp) {
 	    flameI2Cpwm += flameSpeedUp;
 	} else {	
 	    flameI2Cpwm = 0xFF;
 	}
 	push_queue(&setFlamePWM);
-	if (flameI2Cpwm == flameBrightnessMax) {
+	if (flameI2Cpwm >= flameBrightnessMax) {
 	    flameMode = FLAME_UP_WAIT;
 	    flameTicks = 0;
 	}
@@ -103,13 +103,13 @@ void tick_flame(void) { // every 10ms
     }
 
     if (flameMode == FLAME_DOWN) {
-	if (flameI2Cpwm - flameSpeedDown < flameI2Cpwm ) {
+	if (flameSpeedDown <= flameI2Cpwm) {
 	    flameI2Cpwm -= flameSpeedDown;
 	} else {
 	    flameI2Cpwm = 0x00;
 	}
 	push_queue(&setFlamePWM);
-	if (flameI2Cpwm == flameBrightnessMin) {
+	if (flameI2Cpwm <= flameBrightnessMin) {
 	    flameMode = FLAME_DOWN_WAIT;
 	    flameTicks = 0;
 	}

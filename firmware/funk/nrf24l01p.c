@@ -5,6 +5,8 @@
 
 #define DEFAULT_SPEED R_RF_SETUP_DR_2M
 
+uint8_t _nrfresets=0;
+
 /*-----------------------------------------------------------------------*/
 /* Transmit a byte via SPI                                               */
 /*-----------------------------------------------------------------------*/
@@ -153,13 +155,12 @@ int nrf_rcv_pkt_poll_dec(int maxsize, uint8_t * pkt, uint32_t const key[4]){
         return len;
 
     cmpcrc=crc16(pkt,len-2);
-    if(cmpcrc != (pkt[len-2] <<8 | pkt[len-1])) {
+    if(key!=NULL)
         xxtea_decode_words((uint32_t*)pkt,len/4,key);
 
-        cmpcrc=crc16(pkt,len-2);
-        if(cmpcrc != (pkt[len-2] <<8 | pkt[len-1])) {
-            return -3; // CRC failed
-        };
+    cmpcrc=crc16(pkt,len-2);
+    if(cmpcrc != (pkt[len-2] <<8 | pkt[len-1])) {
+        return -3; // CRC failed
     };
     return len;
 };
@@ -192,8 +193,7 @@ int nrf_rcv_pkt_time_encr(int maxtime, int maxsize, uint8_t * pkt, uint32_t cons
 #define LOOPY 10
     for (;maxtime >= LOOPY;maxtime-=LOOPY){
         delayms(LOOPY);
-        //        status =nrf_cmd_status(C_NOP);
-        CS_LOW(); status=C_NOP; sspSendReceive(0, &status, 1); CS_HIGH();
+        status =nrf_cmd_status(C_NOP);
         if( (status & R_STATUS_RX_DR) == R_STATUS_RX_DR){
             if( (status & R_STATUS_RX_P_NO) == R_STATUS_RX_FIFO_EMPTY){
                 nrf_cmd(C_FLUSH_RX);
@@ -393,6 +393,9 @@ void nrf_init() {
 
     // Set speed / strength
     nrf_write_reg(R_RF_SETUP,DEFAULT_SPEED|R_RF_SETUP_RF_PWR_3);
+
+    // Clear MAX_RT, just in case.
+    nrf_write_reg(R_STATUS,R_STATUS_MAX_RT);
 };
 
 void nrf_off() {
@@ -401,4 +404,12 @@ void nrf_off() {
             R_CONFIG_MASK_TX_DS|
             R_CONFIG_MASK_MAX_RT
             ); // Most important: no R_CONFIG_PWR_UP
+};
+
+
+void nrf_check_reset(void){
+    if(nrf_cmd_status(C_NOP) & R_STATUS_MAX_RT){
+        _nrfresets++;
+        nrf_init();
+    };
 };

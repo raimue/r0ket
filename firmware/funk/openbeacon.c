@@ -7,7 +7,7 @@
 #include "basic/uuid.h"
 
 //const uint32_t key[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
-const uint32_t openbeaconkey[4] = { 0xB4595344,0xD3E119B6,0xA814D0EC,0xEFF5A24E };
+#include "SECRETS"
 const uint8_t useencryption = 1;
 const uint8_t mac[5] = {1,2,3,2,1};
 
@@ -90,6 +90,7 @@ uint8_t openbeaconSendPacket(uint32_t id, uint32_t seq,
 uint8_t openbeaconSend(void)
 {
     uint8_t status;
+    nrf_set_channel(OPENBEACON_CHANNEL);
     nrf_set_strength(strength);
     nrf_set_tx_mac(sizeof(mac), mac);
 

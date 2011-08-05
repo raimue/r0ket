@@ -1,0 +1,5 @@
+MEMORY
+{
+    sram(rwx): ORIGIN = 0x10002000 - 2548, LENGTH = 2548
+}
+INCLUDE ram.ld

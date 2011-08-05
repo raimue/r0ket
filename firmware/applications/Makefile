@@ -50,6 +50,10 @@ WRAPOBJ=$(WRAP).o
 WRAPSRC=$(WRAP).c
 LIBFILE=lib$(LIBNAME).a
 
+ifeq "$(FINAL)" "y"
+CFLAGS+=-DFINAL
+endif
+
 ##########################################################################
 # Compiler settings, parameters and flags
 ##########################################################################
@@ -62,6 +66,21 @@ LAPP=blinktest
 endif
 LSRC=../loadable/$(LAPP).c
 LOBJ=loadable_$(LAPP).o
+
+.PHONY: $(LOBJ)
+
+$(LOBJ):
+	$(CC) $(CFLAGS) -o $@ $(LSRC)
+
+OBJS += $(LOBJ)
+endif
+
+ifeq "$(APP)" "l0dable"
+ifndef LAPP
+LAPP=blinktest
+endif
+LSRC=../l0dable/$(LAPP).c
+LOBJ=l0dable_$(LAPP).o
 
 .PHONY: $(LOBJ)
 

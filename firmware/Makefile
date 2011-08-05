@@ -9,6 +9,10 @@ LIBS =
 VPATH +=
 OBJS += main.o
 
+ifeq "$(wildcard table.c)" "table.c"
+OBJS += table.o
+endif
+
 LIBS += lcd/liblcd.a
 LIBS += basic/libbasic.a
 LIBS += core/libcore.a
@@ -61,11 +65,16 @@ protect: $(OUTFILE).bin
 loadables: $(OUTFILE).bin
 	@cd loadable && $(MAKE)
 
+l0dables:
+	@cd l0dable && $(MAKE)
+
 clean:
 	rm -f $(OBJS) $(LD_TEMP) $(OUTFILE).elf $(OUTFILE).bin $(OUTFILE).hex
 	for dir in $(SUBDIRS); do \
 	    $(MAKE) $(CONFIG_MAKE_PRINTDIRECTORY) -C $$dir clean; \
 	done
+	$(MAKE) $(CONFIG_MAKE_PRINTDIRECTORY) -C l0dable clean
+
 flash: all
 	../tools/bootloader/autoflash
 

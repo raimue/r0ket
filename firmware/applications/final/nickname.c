@@ -11,12 +11,26 @@
 
 #include "filesystem/ff.h"
 #include "filesystem/select.h"
+#include "filesystem/execute.h"
 
 #include <string.h>
 
 /**************************************************************************/
 
+void simpleNickname(void);
+
 void fancyNickname(void) {
+    if(GLOBAL(l0nick)){
+        if(execute_file(GLOBAL(nickl0),0,0))
+            GLOBAL(l0nick)=0;
+    }
+
+    if(!GLOBAL(l0nick))
+        simpleNickname();
+    return;
+}
+
+void simpleNickname(void) {
     int dx=0;
 	int dy=0;
     static uint32_t ctr=0;
@@ -44,6 +58,7 @@ void fancyNickname(void) {
 void init_nick(void){
 	readFile("nick.cfg",GLOBAL(nickname),MAXNICK);
 	readFile("font.cfg",GLOBAL(nickfont),FILENAMELEN);
+	readFile("l0nick.cfg",GLOBAL(nickl0),FILENAMELEN);
 };
 
 //# MENU nick editNick
@@ -60,7 +75,7 @@ void doFont(void){
         lcdPrintln("No file selected.");
         return;
     };
-	writeFile("font.cfg",GLOBAL(nickname),strlen(GLOBAL(nickname)));
+	writeFile("font.cfg",GLOBAL(nickfont),strlen(GLOBAL(nickfont)));
 
     lcdClear();
     setIntFont(&Font_7x8);
@@ -70,4 +85,17 @@ void doFont(void){
     lcdDisplay();
     setIntFont(&Font_7x8);
     while(!getInputRaw())delayms(10);
+};
+
+//# MENU nick chooseAnim
+void doAnim(void){
+    getInputWaitRelease();
+    if( selectFile(GLOBAL(nickl0),"NIK") != 0){
+        lcdPrintln("No file selected.");
+        GLOBAL(l0nick)=0;
+        return;
+    };
+	writeFile("l0nick.cfg",GLOBAL(nickl0),strlen(GLOBAL(nickl0)));
+    GLOBAL(l0nick)=1;
+    getInputWaitRelease();
 };

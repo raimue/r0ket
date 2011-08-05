@@ -23,16 +23,9 @@
 #define BEACON_CHANNEL 81
 #define BEACON_MAC     "\x1\x2\x3\x2\1"
 
-uint32_t const beaconkey[4] = {
-        0xB4595344,0xD3E119B6,0xA814D0EC,0xEFF5A24E
-};
-uint32_t remotekey[4] = {
-    0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
-};
-uint32_t meshkey[4] = {
-    0x0, 0x0, 0x0, 0x0
-};
+#include "SECRETS"
 
+char funkencrypt=0;
 
 #if CFG_USBMSC
 #error "MSC is defined"
@@ -151,6 +144,7 @@ int process(char * input){
             config.nrmacs=1;
             nrf_config_set(&config);
             memcpy(thekey,meshkey,sizeof(thekey));
+            funkencrypt=1;
         }else if(input[1]=='r'){
             config.channel=REMOTE_CHANNEL;
             memcpy(config.txmac,REMOTE_MAC,5);
@@ -159,6 +153,7 @@ int process(char * input){
             config.nrmacs=1;
             nrf_config_set(&config);
             memcpy(thekey,remotekey,sizeof(thekey));
+            funkencrypt=1;
         }else if(input[1]=='b'){
             config.channel=BEACON_CHANNEL;
             memcpy(config.txmac,BEACON_MAC,5);
@@ -166,7 +161,8 @@ int process(char * input){
             config.maclen[0]=0x10;
             config.nrmacs=1;
             nrf_config_set(&config);
-            memcpy(thekey,beaconkey,sizeof(thekey));
+            memcpy(thekey,openbeaconkey,sizeof(thekey));
+            funkencrypt=1;
         }else if(input[1]=='?'){
             nrf_config_get(&config);
             puts_plus("Ch: ");puts_plus(IntToStrX( config.channel,2 )); puts_plus("\r\n");
@@ -202,6 +198,10 @@ int process(char * input){
                 puts_plus(" ");
             };
             puts_plus("\r\n");
+
+            puts_plus("encrypt : ");
+                puts_plus(IntToStrX( funkencrypt,2 ));
+            puts_plus("\r\n");
         };
     }else if(input[0]=='C'){
         int len;
@@ -228,6 +228,15 @@ int process(char * input){
         }else if(input[1]=='c'){
             config.channel=*hex;
             nrf_config_set(&config);
+        }else if(input[1]=='l'){
+            config.maclen[0]=uint8ptouint32(hex);
+            config.maclen[1]=uint8ptouint32(hex+4);
+            config.maclen[2]=uint8ptouint32(hex+8);
+            config.maclen[3]=uint8ptouint32(hex+12);
+            config.maclen[4]=uint8ptouint32(hex+16);
+            nrf_config_set(&config);
+        }else if(input[1]=='e'){
+            funkencrypt= uint8ptouint32(hex);
         };
     }else if (input[0]=='s'){
         __attribute__ ((aligned (4))) uint8_t buf[32];
@@ -251,7 +260,7 @@ int process(char * input){
             len+=2; // Add crc!
 
             memcpy(buf,hex,len);
-            status=nrf_snd_pkt_crc_encr(len,buf,thekey);
+            status=nrf_snd_pkt_crc_encr(len,buf,funkencrypt?thekey:NULL);
 
             puts_plus("P ");
             puts_plus("[");puts_plus(IntToStrX(len,2));puts_plus("] ");
@@ -266,7 +275,7 @@ int process(char * input){
             while(--ctr>0){
                 delayms(23);
                 memcpy(buf,hex,len);
-                status=nrf_snd_pkt_crc_encr(len,buf,thekey);
+                status=nrf_snd_pkt_crc_encr(len,buf,funkencrypt?thekey:NULL);
             };
         }else if (input[1]=='t'){
             static int ctr=1;
@@ -283,7 +292,7 @@ int process(char * input){
 
             buf[12]=0xff; // salt (0xffff always?)
             buf[13]=0xff;
-            status=nrf_snd_pkt_crc_encr(16,buf,thekey);
+            status=nrf_snd_pkt_crc_encr(16,buf,funkencrypt?thekey:NULL);
         }else{
         };
         puts_plus("S state=");
@@ -310,7 +319,7 @@ int process(char * input){
         puts_plus("D receive ...\r\n");
         nrf_rcv_pkt_start();
         do{
-            len=nrf_rcv_pkt_poll_dec(sizeof(buf),buf,thekey);
+            len=nrf_rcv_pkt_poll_dec(sizeof(buf),buf,funkencrypt?thekey:NULL);
             // Receive
             if(len==0||len==-1||len==-2){ //No pkt, Pkt2large, NoPktError
                 delayms(10);
