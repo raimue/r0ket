@@ -16,7 +16,7 @@ struct CDESC the_config[]= {
     {"daytrig",          310/2, 0, 255, 0, 0},
     {"daytrighyst",      10,    0, 50 , 0, 0},
     {"dayinvert",        1,     0, 1  , 0, 0},
-    {"lcdbacklight",     50,    0, 100, 0, 0},
+    {"lcdbacklight",     30,    0, 100, 0, 0},
     {"lcdmirror",        0,     0, 1  , 0, 0},
     {"lcdinvert",        0,     0, 1  , 0, 0},
     {"lcdcontrast",      14,    0, 31 , 0, 0},
@@ -29,6 +29,7 @@ struct CDESC the_config[]= {
     {"flameminw",        0x8f,  1, 255, 1, CFG_TYPE_FLAME},
     {"l0nick",           0,     0, 1  , 0, 0},
     {"chargeled",        0,     0, 1  , 0, 0},
+    {"positionleds",     0,     0, 1  , 0, 0},
     { NULL,              0,     0, 0  , 0, 0},
 };
 
@@ -44,7 +45,10 @@ char nickl0[FILENAMELEN];
 void applyConfig(){
     if(GLOBAL(lcdcontrast)>0)
         lcdSetContrast(GLOBAL(lcdcontrast));
-    enableConfig(CFG_TYPE_DEVEL,GLOBAL(develmode));
+    if(GLOBAL(develmode))
+        enableConfig(CFG_TYPE_DEVEL,1);
+    if(isNight())
+        backlightSetBrightness(GLOBAL(lcdbacklight));
 };
 
 int saveConfig(void){

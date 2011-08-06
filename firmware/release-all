@@ -41,7 +41,7 @@ echo "###"
 echo "### Building final"
 echo "###"
 export FINAL=y
-cp filesystem/ffconf.h-final ffconf.h
+cp filesystem/ffconf.h-final filesystem/ffconf.h
 make clean 
 ./l0dable/mktable.pl
 make APP=final
@@ -59,9 +59,10 @@ echo "### Gathering files"
 echo "###"
 cp ../tools/font/binary/*.f0n $TARG/files/
 cp ../tools/image/lcd/*.lcd $TARG/files/
+cp ../tools/image/lcd/i42.lcd $TARG/files/nick.lcd
 
 echo "###"
-echo "### Gathering/crypting loadables"
+echo "### Gathering loadables"
 echo "###"
 # XXX: add crypto stuff
 (cd l0dable && make)
@@ -69,8 +70,36 @@ mv l0dable/*.c0d $TARG/files/
 mv l0dable/*.int $TARG/files/
 mv l0dable/*.nik $TARG/files/
 
+if grep -q 'define ENCRYPT_L0DABLE' SECRETS ; then
+
+echo "###"
+echo "### Crypting loadables"
+echo "###"
+
+skey=`./getkey.pl l0dable_sign`
+ekey=`./getkey.pl l0dable_crypt`
+
+if [ -z "$ekey" ] ; then 
+    echo E-Key fail
+    exit 1
+fi
+
+if [ -z "$skey" ] ; then 
+    echo S-Key fail
+    exit 1
+fi
+
+for a in $TARG/files/*.c0d $TARG/files/*.int $TARG/files/*.nik ; do
+    echo Crypting $a
+    ../tools/crypto/xxtea -e -k $ekey $a
+    ../tools/crypto/xxtea -s -k $skey $a
+done
+
+fi
+
 echo "###"
 echo "### Done. Yay!"
 echo "###"
 
 git checkout SECRETS
+git checkout filesystem/ffconf.h

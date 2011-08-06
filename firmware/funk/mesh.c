@@ -90,9 +90,9 @@ void mesh_sendloop(void){
     MO_TIME_set(meshbuffer[0].pkt,getSeconds());
     MO_GEN_set(meshbuffer[0].pkt,meshgen);
     if(GLOBAL(privacy)==0)
-        uint32touint8p(GetUUID32(),MO_BODY(meshbuffer[0].pkt));
+        uint32touint8p(GetUUID32(),meshbuffer[0].pkt+26);
     else
-        uint32touint8p(0,MO_BODY(meshbuffer[0].pkt));
+        uint32touint8p(0,meshbuffer[0].pkt+26);
 
     MO_BODY(meshbuffer[0].pkt)[4]=meshnice;
 
@@ -188,7 +188,7 @@ uint8_t mesh_recvqloop_work(void){
             for(int i=6;i<MESHPKTSIZE;i++)
                 mpkt->pkt[i]|=buf[i];
 
-            int score=popcount(MO_BODY(mpkt->pkt),6);
+            int score=popcount((uint32_t*)MO_BODY(mpkt->pkt),6);
 
             MPKT* reply=meshGetMessage('z');
 
