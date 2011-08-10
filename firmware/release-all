@@ -45,7 +45,6 @@ cp filesystem/ffconf.h-final filesystem/ffconf.h
 make clean 
 ./l0dable/mktable.pl
 make APP=final
-make protect
 cp firmware.elf $TARG/final.elf
 cp firmware.bin $TARG/final.bin
 
