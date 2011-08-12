@@ -77,6 +77,7 @@ void ram(void) {
     TMR_TMR32B0MCR = (TMR_TMR32B0MCR_MR0_INT_ENABLED | TMR_TMR32B0MCR_MR0_RESET_ENABLED);
     NVIC_EnableIRQ(TIMER_32_0_IRQn);
     TMR_TMR32B0TCR = TMR_TMR32B0TCR_COUNTERENABLE_ENABLED;
+ 
     init_lilakit();
 	mainloop();
 
@@ -109,10 +110,15 @@ static void mainloop(void) {
 	DoString(dx,dy,GLOBAL(nickname));
 	lcdRefresh();
 
+	//lcdClear();
+    //lcdRefresh();
+    lk_ticks = 0;
     while(getInputRaw()==BTN_NONE){
-        delayms_queue_plus(10,0);
+        tick_lilakit();
+        //delayms_queue_plus(10,0);
+        //delayms_queue(10);
+        delayms(10);
     };
-    tick_lilakit();
     return;
 }
 
@@ -154,12 +160,30 @@ static void lkReadI2C() {
     
 static void tick_lilakit(void)
 { // every 10ms
-    if (lkEnabled == 0) {
-	return;
-    }
-    
+    uint32_t ton, timer;
     lk_ticks++;
 
+    if( (lk_ticks % 100) == 0 ){
+        //lcdPrintln("a"); lcdRefresh();
+        ton = 2000;
+        timer = (72000000UL/ton/2);
+        TMR_TMR32B0MR0 = timer;
+    }
+
+    if( (lk_ticks % 100) == 50 ){
+        //lcdPrintln("b"); lcdRefresh();
+        ton = 5000;
+        timer = (72000000UL/ton/2);
+        TMR_TMR32B0MR0 = timer;
+    }
+    //return;
+    if (TMR_TMR32B0TC > timer){    //schneller fix wenn ton zurueckgesetzt wird,     aber timer weiterlaeuft
+        TMR_TMR32B0TC=0;
+    }
+    if (lkEnabled == 0) {
+	    return;
+    }
+ 
     if (lk_ticks % 10 == 0) {
 	    lkReadI2C();
     }
