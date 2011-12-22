@@ -27,10 +27,7 @@
 #define CRP_VALUE 0x0  // ANY non-magic value disables CRP
 #endif
 
-#ifndef __APPLE__
-__attribute__ ((used, section("crp")))
-#endif
-const uint32_t the_crp=CRP_VALUE;
+//__attribute__ ((used, section("crp"))) const uint32_t the_crp=CRP_VALUE;
 
 /**************************************************************************/
 
@@ -49,12 +46,13 @@ int main(void) {
     // initialise basic badge functions
     rbInit();
 
-    fsInit();
   
     lcdInit(); // display
 
     lcdFill(0);
     lcdDisplay();
+    
+    fsInit();
 
 	wrapper(); // see module/ subdirectory
 }
